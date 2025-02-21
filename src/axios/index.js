@@ -68,14 +68,19 @@ class HttpService {
    * @param params
    * @returns
    */
-  request(url, params,headers) {
+  request(url, params = {}) {
     // 得到解析数据
-    const { api, config } = loader(url);
+    const { api, config, isUrl } = loader(url);
 
-    let apiConfig = api(params)
+    let apiConfig = api
 
     // 合并策略  全局配置-->模块配置-->单独配置
     let options = Object.assign({}, this.options, config, apiConfig);
+
+    // 处理全路径
+    if(isUrl === true) {
+      options.url = url
+    }
 
     const isGet =
       typeof options.method === "undefined" ||
@@ -84,17 +89,15 @@ class HttpService {
     if (isGet) {
       let _cache = options.cache === false ? { _t: +new Date() } : {};
       options.params = { ..._cache, ...options.params };
+    }else {
+      // 模拟表单格式发送数据
+      if (options.emulateJSON === true) {
+          options.headers = { 'Content-Type': 'application/x-www-form-urlencoded' }
+          params = Qs.stringify(params)
+      }
+      options.data = params
     }
-    ///保存传递的header
-    options.headers = Object.assign({}, options.headers,headers);
-    if (options.data && options.emulateJSON) {
-      // 模拟表单提交
-      options.headers = Object.assign({}, options.headers, {
-        "Content-Type": "application/x-www-form-urlencoded"
-      });
-      options.data = Qs.stringify(options.data);
-    }
-    const _axios = this.axios;
+    axios = this.axios;
     return new Promise((resolve, reject) => {
       _axios
         .request(options)
